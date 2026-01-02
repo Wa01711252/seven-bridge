@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>カードゲームスコアラー</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        input[type="number"], input[type="text"] { width: 60px; padding: 5px; }
+        .btn { cursor: pointer; padding: 5px 10px; margin: 2px; border: none; border-radius: 4px; background: #007bff; color: white; }
+        .btn-template { background: #6c757d; }
+        .total-row { font-weight: bold; background: #e9ecef; }
+        .special-rule { font-size: 0.8em; color: #d9534f; display: block; }
+    </style>
+</head>
+<body>
+
+<h2>カードゲーム スコア管理</h2>
+
+<div class="card">
+    人数: <input type="number" id="playerCount" value="4" min="1">
+    名前: <input type="text" id="names" placeholder="A,B,C,D (カンマ区切り)">
+    <button class="btn" onclick="initTable()">テーブル作成</button>
+</div>
+
+<div id="gameArea" class="card" style="display:none;">
+    <table id="scoreTable">
+        <thead><tr id="headerRow"></tr></thead>
+        <tbody id="scoreBody"></tbody>
+        <tfoot><tr id="totalRow" class="total-row"></tr></tfoot>
+    </table>
+    <br>
+    <button class="btn" onclick="addRound()">ラウンド追加</button>
+</div>
+
+<script>
+    let players = [];
+    
+    function initTable() {
+        const count = document.getElementById('playerCount').value;
+        const nameInput = document.getElementById('names').value;
+        players = nameInput ? nameInput.split(',') : Array.from({length: count}, (_, i) => `Player ${i+1}`);
+        
+        // ヘッダー作成
+        const header = document.getElementById('headerRow');
+        header.innerHTML = '<th>ラウンド</th>';
+        players.forEach(p => header.innerHTML += `<th>${p.trim()}</th>`);
+        
+        document.getElementById('scoreBody').innerHTML = '';
+        document.getElementById('gameArea').style.display = 'block';
+        addRound();
+    }
+
+    function addRound() {
+        const body = document.getElementById('scoreBody');
+        const roundNum = body.rows.length + 1;
+        const row = body.insertRow();
+        row.innerHTML = `<td>${roundNum}</td>`;
+        
+        players.forEach((_, i) => {
+            row.innerHTML += `
+                <td>
+                    <input type="number" class="base-score" placeholder="基本点" oninput="calculate()">
+                    <div>
+                        <select class="multiplier" onchange="calculate()">
+                            <option value="1">x1</option>
+                            <option value="2">x2</option>
+                            <option value="4">x4</option>
+                            <option value="8">x8</option>
+                        </select>
+                        <label><input type="checkbox" class="bonus" onchange="calculate()"> +10</label>
+                    </div>
+                    <div>
+                        <button class="btn btn-template" onclick="setVal(this, -100)">-100</button>
+                        <button class="btn btn-template" onclick="setVal(this, -50)">-50</button>
+                        <button class="btn btn-template" onclick="setVal(this, 0)">0</button>
+                    </div>
+                </td>`;
+        });
+        calculate();
+    }
+
+    function setVal(btn, val) {
+        const input = btn.parentElement.parentElement.querySelector('.base-score');
+        input.value = val;
+        calculate();
+    }
+
+    function calculate() {
+        const totals = new Array(players.length).fill(0);
+        const rows = document.getElementById('scoreBody').rows;
+
+        for (let i = 0; i < rows.length; i++) {
+            for (let j = 0; j < players.length; j++) {
+                const cell = rows[i].cells[j+1];
+                const base = parseFloat(cell.querySelector('.base-score').value) || 0;
+                const mult = parseFloat(cell.querySelector('.multiplier').value);
+                const bonus = cell.querySelector('.bonus').checked ? 10 : 0;
+                
+                totals[j] += (base * mult) + bonus;
+            }
+        }
+
+        const footer = document.getElementById('totalRow');
+        footer.innerHTML = '<td>合計点</td>';
+        totals.forEach(score => {
+            let displayScore = score;
+            let ruleText = "";
+            
+            // 3桁ゾロ目ルール (111, 222, ... 999)
+            if (score > 100 && score < 1000 && score % 111 === 0) {
+                displayScore = Math.floor(score / 100) * 100;
+                ruleText = `<span class="special-rule">ゾロ目切捨: ${score}→${displayScore}</span>`;
+            }
+            
+            footer.innerHTML += `<td>${displayScore}${ruleText}</td>`;
+        });
+    }
+</script>
+</body>
+</html>
